@@ -1,0 +1,60 @@
+# Workflow to deploy Shiny app to shinyapps.io
+# Trigger this workflow on pushes to the main branch
+
+name: Deploy ShinyApp
+
+on:
+  push:
+    branches: [ main ] # Or 'master', adjust to your default branch name
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # Use a standard Linux runner
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }} # Standard GitHub token
+      # Pass shinyapps.io credentials from secrets
+      RSCONNECT_ACCOUNT: ${{ secrets.RSCONNECT_ACCOUNT }}
+      RSCONNECT_TOKEN: ${{ secrets.RSCONNECT_TOKEN }}
+      RSCONNECT_SECRET: ${{ secrets.RSCONNECT_SECRET }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.2' # Specify an R version, adjust if needed
+
+      - name: Install R dependencies (including Bioconductor)
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          packages: |
+            any::shiny
+            any::rsconnect
+            any::Seurat
+            any::dplyr
+            any::ggplot2
+            any::patchwork
+            any::magrittr
+            any::RColorBrewer
+            any::ggrepel
+            any::SingleR
+            any::celldex
+            any::SingleCellExperiment
+            BiocManager::BiocManager # Needed to install Bioconductor packages
+          # Add Bioconductor packages here if not automatically picked up
+          # (rsconnect usually handles this well during deployment analysis)
+          # Example: BiocManager::install(c("SingleR", "celldex", "SingleCellExperiment"))
+
+      - name: Deploy Shiny app to shinyapps.io
+        run: |
+          rsconnect::deployApp(
+            appDir = "ShinyApp", # Directory containing ui.R and server.R
+            appName = "Single-Cell-Analysis-Dashboard", # Choose a unique name for your app on shinyapps.io
+            account = Sys.getenv("RSCONNECT_ACCOUNT"),
+            server = "shinyapps.io",
+            forceUpdate = TRUE # Force update if app already exists
+          )
+        shell: Rscript {0}
